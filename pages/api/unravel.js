@@ -1,10 +1,4 @@
-const unravel = async (url, stripUtm, hops = []) => {
-  if (stripUtm) {
-    url = url.replace(/&?utm_.+?(&|$)/gi, '')
-  }
-
-  url = new URL(url)
-
+const unravel = async (url, hops = []) => {
   const options = {
     redirect: 'manual',
     headers: new Headers({ 'User-Agent': 'NodeJS/Unravel 1.0.0' }),
@@ -23,7 +17,7 @@ const unravel = async (url, stripUtm, hops = []) => {
   })
 
   if (headers['location']) {
-    return unravel(headers['location'], stripUtm, hops)
+    return unravel(headers['location'], hops)
   } else {
     return hops
   }
@@ -31,7 +25,7 @@ const unravel = async (url, stripUtm, hops = []) => {
 
 export default async (req, res) => {
   const url = req.query.url
-  const unravelled = await unravel(url, true)
+  const unravelled = await unravel(url)
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/json')
   res.end(JSON.stringify(unravelled))

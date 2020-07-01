@@ -66,6 +66,10 @@ input::placeholder {
   overflow-y: hidden;
 }
 
+.is-overflow-x-hidden {
+  overflow-x: hidden;
+}
+
 .has-text-darker {
   color: rgba(0, 0, 0, 0.2);
 }
