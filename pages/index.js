@@ -2,6 +2,8 @@ import Head from 'next/head'
 import absoluteUrl from 'next-absolute-url'
 import { highlight } from '../src/highlight'
 import { toggleReveal } from '../src/reveal'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 
 export async function getServerSideProps(context) {
   const url = context.query.url || null
@@ -17,13 +19,49 @@ export async function getServerSideProps(context) {
 }
 
 const Home = (props) => {
-  const url = props.url
-  const hops = props.hops.slice(1, -1)
-  const finalUrl = props.hops[props.hops.length - 1]?.['url']
-  const firstHeader = props.hops[0]?.['headers']
-  const cookies = props.hops.slice(0, -1).filter((hop) => {
-    return typeof hop['headers']['set-cookie'] != 'undefined'
-  })
+  const [url, setUrl] = useState(props.url)
+  const [hops, setHops] = useState(props.hops.slice(1, -1))
+  const [finalUrl, setFinalUrl] = useState(
+    props.hops[props.hops.length - 1]?.['url']
+  )
+  const [firstHeader, setFirstHeader] = useState(props.hops[0]?.['headers'])
+  const [cookies, setCookies] = useState(
+    props.hops.slice(0, -1).filter((hop) => {
+      return typeof hop['headers']['set-cookie'] != 'undefined'
+    })
+  )
+
+  const router = useRouter()
+
+  const unravel = async (check_url) => {
+    let hops = []
+
+    setFirstHeader(undefined)
+    setHops([])
+    setFinalUrl('')
+
+    const { protocol, host } = document.location
+    const apiURL = `${protocol}//${host}/api/unravel`
+    hops = await fetch(
+      `${apiURL}?url=${encodeURIComponent(check_url)}`
+    ).then((res) => res.json())
+
+    setHops(hops.slice(1, -1))
+    setUrl(check_url)
+    setFinalUrl(hops[hops.length - 1]?.['url'])
+    setFirstHeader(hops[0]?.['headers'])
+    setCookies(
+      hops.slice(0, -1).filter((hop) => {
+        return typeof hop['headers']['set-cookie'] != 'undefined'
+      })
+    )
+  }
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault()
+    window.history.pushState('', '', `?url=${encodeURIComponent(url)}`)
+    unravel(url)
+  }
 
   return (
     <div>
@@ -35,12 +73,12 @@ const Home = (props) => {
       </Head>
       <section className="section">
         <div className="container animate__animated animate__fadeInUp">
-          <form method="get">
-            <h1 className="title has-text-white">
-              <a href="/" className="has-text-white">
-                Unravel
-              </a>
-            </h1>
+          <h1 className="title has-text-white">
+            <a href="/" className="has-text-white">
+              Unravel
+            </a>
+          </h1>
+          <form method="get" onSubmit={handleFormSubmit}>
             <div className="box is-margin-bottom-0 has-background-dark">
               <div className="field has-addons">
                 <div className="control is-expanded">
@@ -55,7 +93,8 @@ const Home = (props) => {
                     id="url"
                     required
                     autoFocus={true}
-                    defaultValue={url}
+                    defaultValue={router.query.url}
+                    onChange={(e) => setUrl(e.target.value)}
                   />
                 </div>
                 <div className="control">
@@ -80,7 +119,7 @@ const Home = (props) => {
               ) : null}
             </div>
           </form>
-          {props.hops.length > 0 ? (
+          {finalUrl != '' ? (
             <div className="has-text-centered has-text-white is-margin-bottom-1rem is-margin-top-1rem">
               <button
                 className="button is-outlined is-dark has-icon"
@@ -90,8 +129,7 @@ const Home = (props) => {
                   <i className="fas fa-angle-double-down"></i>
                 </span>
                 <span>
-                  Skipping {props.hops.length - 1}{' '}
-                  {props.hops.length - 1 == 1 ? 'hop' : 'hops'}
+                  Skipping {hops.length} {hops.length - 1 == 1 ? 'hop' : 'hops'}
                   &nbsp;and {cookies.length}
                   &nbsp;{cookies.length == 1 ? 'cookie' : 'cookies'}
                 </span>
@@ -122,7 +160,7 @@ const Home = (props) => {
               </div>
             )
           })}
-          {typeof finalUrl == 'undefined' ? null : (
+          {typeof finalUrl == 'undefined' || finalUrl == '' ? null : (
             <div className="box has-background-white has-text-centered">
               <a
                 href={finalUrl}
